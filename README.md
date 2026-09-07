@@ -20,19 +20,24 @@ Windows 端微信 4.x / QQ NT（9.9.35 实测）本地聊天记录解密管线�
 
 - 数据库为 SQLCipher 4 页加密：`盐=文件头16B`，`enc=PBKDF2-SHA512(passphrase,盐,256000)`，
   `mac=PBKDF2-SHA512(enc,盐^0x3a,2)`，每页 `[密文][IV16][HMAC-SHA512 64]`
-- 密钥（32B raw）以 `{指针, len=0x20, cap}` 堆描述符存在主进程内存，但**长时间运行后会被清空**
+- 密钥（32B raw）以 `{指针, len=0x20, cap}` 堆描述符存在主进程内存，但**登录完成后会被主动清空**——
+  错过登录窗口后 `x'<hex>'` 扫描和描述符扫描都会扑空
 - 因此用 wx_key（DLL 注入，hook 开库调用）在登录瞬间抓 passphrase；wx_key 项目已删库，
-  本仓库 `tools/wx_key-2.0.1` 的获取方式见下方"致谢"
+  获取方式见下方"致谢"
+
+📄 详细原理与抓钥时序：[docs/wechat_key_extraction.md](docs/wechat_key_extraction.md)
 
 ### 用法
 
 ```bash
 python wx4.py keyscan    # 或使用 wx_key 抓取后写入 wx_keys.txt（行格式: <64hex>\tkdf=True）
-python wx4.py decrypt    # 全库解密到 decrypted/
-python extract_me.py     # （可选）聚合摘要，需自行修改个人关键词
+python wx4.py decrypt    # 全库解密到 decrypted/（27 库 HMAC 全过）
+python extract_me.py --decrypted decrypted          # 可选: 本人消息聚合摘要（不落原文）
+python extract_meta.py --root <微信数据目录>         # 可选: 免解密文件名时间线探针
 ```
 
-要求：微信已登录（重登窗口期抓钥最稳）；解密参数已实测对 4.1.13 全部 27 库 HMAC 通过。
+要求：微信已登录（重登窗口期抓钥最稳）。解密库中 `message_content` 的 zstd 压缩
+（`WCDB_CT_message_content=4`）已在 `extract_me.py` 内置处理。
 
 ## QQ NT（实测 9.9.35-52892）
 
@@ -91,6 +96,8 @@ python qq_parse_msg.py --json out.json # 另存结构化 JSON
 实测 161 万条仅 2 条解析失败（0.0001%）。字段表参考 miniyu157/qq-dump 的
 `proto_maps.py`（~260 个字段语义），本脚本已内联并自带无 schema 递归解码器，无 blackboxprotobuf 依赖。
 
+📄 解码器设计（resync / 双解码链 / 字段语义表）：[docs/qq_message_parsing.md](docs/qq_message_parsing.md)
+
 ### 关键发现：QQ NT 9.9.35 每库密钥独立
 
 对同一账号同一登录会话内的四个库（nt_msg / group_info / profile_info / collection）分别
@@ -100,11 +107,24 @@ python qq_parse_msg.py --json out.json # 另存结构化 JSON
 旧版"抓到一把钥匙解所有库"的方法在新版上天然失效，必须逐库恢复密钥。
 验证方式见 [docs/known_plaintext_key_recovery.md](docs/known_plaintext_key_recovery.md)。
 
+两点实操结论（详见 docs）：
+
+- `recent_contact.db`（会话列表缓存）实测为空壳——真实会话数据在 nt_msg，无需单独处理
+- `files_in_chat.db` 等冷门库的连接按需开关：先在 UI 触发对应功能（如打开"文件"标签页）
+  让连接建立，再执行搜钥；另外 9.9.35 的二进制 passphrase 可直接按 latin-1 当字符串钥用
+
+## 解密产物清单
+
+微信 27 库 + QQ 12 库的字段/条数/用途全表：
+[docs/database_inventory.md](docs/database_inventory.md)
+
 ## 文件
 
 | 文件 | 用途 |
 |---|---|
 | `wx4.py` | 微信 4.x 密钥验证 / 内存扫描 / 批量页解密 |
+| `extract_me.py` | 微信本人消息聚合摘要（高频对话/作息/关键词/长文本样本；zstd 消息体已内置） |
+| `extract_meta.py` | 免解密微信元数据探针（文件名/按月时间线/媒体体量） |
 | `qqnt.py` | QQ NT 库结构（1024B 头剥离、SQLCipher 参数）解密 |
 | `qq_hook.js` / `qq_hook_run.py` / `qq_hook_all.py` / `qq_hook_gate.py` | Frida hook（单进程 / 全进程 / child gating） |
 | `scan_derived.py` / `qq_scan_db.py` | 已知明文派生密钥内存搜索 |
@@ -112,10 +132,19 @@ python qq_parse_msg.py --json out.json # 另存结构化 JSON
 | `find_holder.py` | 句柄枚举，定位持有目标库的进程 |
 | `qq_parse_msg.py` | 消息体 protobuf（40800 列）→ 可读文本；支持单聊/群聊、无 schema 递归解码、uid→昵称映射、多元素渲染（引用/表情/图片/文件/红包/灰条等） |
 
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [docs/wechat_key_extraction.md](docs/wechat_key_extraction.md) | 微信 4.1.x 密钥提取：为何内存扫描失效、堆描述符结构、SQLCipher 参数、zstd 消息体 |
+| [docs/known_plaintext_key_recovery.md](docs/known_plaintext_key_recovery.md) | QQ 已知明文搜派生密钥：页 1 指纹原理、误报分析、每库独立钥证据链 |
+| [docs/qq_message_parsing.md](docs/qq_message_parsing.md) | 40800 列 protobuf 解析：resync walker、utf-8/GBK 双解码链、字段语义表 |
+| [docs/database_inventory.md](docs/database_inventory.md) | 两端解密产物全清单：库用途、条数、复验命令 |
+
 ## 依赖
 
 ```
-pip install pycryptodome psutil frida sqlcipher3 capstone pefile
+pip install pycryptodome psutil frida sqlcipher3 capstone pefile zstandard
 ```
 
 - `sqlcipher3` 0.6.2 提供 Windows wheel（官方 NTQQ 解密教程同款）
