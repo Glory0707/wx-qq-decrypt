@@ -38,7 +38,7 @@
    （wx_key 原仓库已删库，可从 LifeArchiveProject/WeChatDataAnalysis 的
     vendor 目录获取，见 README 致谢）
 2. python wx4.py keyscan   # 校验钥匙（页1 HMAC）
-3. python wx4.py decrypt   # 批量页解密 → decrypted/
+3. python wx4.py decrypt   # 批量页解密 → local/decrypted/
 4. python extract_me.py    # 可选: 本人消息聚合摘要
 ```
 

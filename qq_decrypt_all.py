@@ -9,7 +9,7 @@ import sys
 import sqlcipher3.dbapi2 as sc
 
 SRC = r"<QQ_NT_DB>"
-DST = r".\decrypted_qq"
+DST = r".\local\decrypted_qq"
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 

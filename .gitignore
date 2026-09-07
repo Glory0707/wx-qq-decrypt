@@ -7,3 +7,5 @@ __pycache__/
 *_keys*.txt
 keys*.txt
 out/
+local/
+vendor/wechat-decrypt/config.json

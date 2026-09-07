@@ -5,7 +5,7 @@
 消息类型分布、长文本样本（自我表达候选）。输出为 Markdown，仅含统计与短样本。
 
 用法:
-    python extract_me.py --decrypted decrypted --out _wx_digest.md \
+    python extract_me.py --decrypted local/decrypted --out _wx_digest.md \
         --keywords "工作|项目|会议|代码|考试"
 """
 import argparse
@@ -49,7 +49,7 @@ def get_text(row, cols):
 
 def main():
     ap = argparse.ArgumentParser(description="本人消息聚合摘要（不导出原文）")
-    ap.add_argument("--decrypted", default="decrypted", help="wx4.py decrypt 的输出目录")
+    ap.add_argument("--decrypted", default="local/decrypted", help="wx4.py decrypt 的输出目录")
     ap.add_argument("--out", default="_wx_digest.md", help="输出 Markdown 路径")
     ap.add_argument("--keywords", default="工作|项目|会议|代码|文件|计划|考试|学习",
                     help="主题关键词正则（用 | 分隔）")

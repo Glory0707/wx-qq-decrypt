@@ -31,7 +31,7 @@ HEADER_SZ = 1024
 PAT_STRICT = re.compile(rb"(#[\x21-\x7e]{12}@[\x21-\x7e]{2})")
 PAT_LOOSE = re.compile(rb"([\x21-\x7e]{16})")
 DEFAULT_SRC = r"<QQ_NT_DB>"
-DEFAULT_DST = r".\decrypted_qq"
+DEFAULT_DST = r".\local\decrypted_qq"
 
 # ---- 复用 wx4 的进程内存扫描 (ctypes) ----
 from wx4 import find_pids, scan_process, read_at  # noqa: E402

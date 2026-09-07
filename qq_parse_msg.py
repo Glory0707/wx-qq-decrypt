@@ -17,8 +17,8 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_DB = os.path.join(HERE, "decrypted_qq", "nt_msg_plain.db")
-PROFILE_DB = os.path.join(HERE, "decrypted_qq", "profile_info_plain.db")
+DEFAULT_DB = os.path.join(HERE, "local", "decrypted_qq", "nt_msg_plain.db")
+PROFILE_DB = os.path.join(HERE, "local", "decrypted_qq", "profile_info_plain.db")
 
 # ---------------- protobuf 原始解码 ----------------
 
@@ -380,7 +380,7 @@ def load_uid_map():
             pass
         con.close()
     # 群成员名片 (uid -> QQ号@群昵称), 补充非好友
-    gi = os.path.join(HERE, "decrypted_qq", "group_info_plain.db")
+    gi = os.path.join(HERE, "local", "decrypted_qq", "group_info_plain.db")
     if os.path.exists(gi):
         con = sqlite3.connect(gi)
         try:
@@ -414,7 +414,7 @@ def main():
             print(f"[skip] {table}: 无 40800 列")
             continue
         is_group = table.startswith("group")
-        out_txt = a.out or os.path.join(HERE, "decrypted_qq", f"QQ_聊天记录_{table}.txt")
+        out_txt = a.out or os.path.join(HERE, "local", "decrypted_qq", f"QQ_聊天记录_{table}.txt")
         out_json = a.json
         n = con.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
         print(f"[{table}] {n} 条 -> {out_txt}", flush=True)
@@ -438,7 +438,7 @@ def main():
             if is_group:
                 head = f"[{tstr}] 群{row[2]} {sname}"
             else:
-                head = f"[{tstr}] {sname}"
+                head = f"[{tstr}] [{uid_map.get(peer, peer or '')}] {sname}"
             line = head + ": " + " | ".join(t for t in texts if t)
             tf.write(line + "\n")
             if jf:

@@ -59,7 +59,7 @@ if pt[:2] == b"\x10\x00" and pt[5] == 0x40 and pt[6] == 0x20 and pt[7] == 0x20: 
    └─ 扫各 QQ 进程内存找表名明文 ("group_msg_table" / "c2c_msg_table")，
       计数最高者即持库进程（页缓存在 SQLITE_OPEN 页里以明文存在）
 2. 对该进程做逐区域 32B 滑窗 + 熵预筛 (set(bytes)>=12) + AES 试解
-3. 命中 → 存 hex 到 qq_derived_keys/<db>.key
+3. 命中 → 存 hex 到 local/qq_derived_keys/<db>.key
 4. qq_decrypt_db.py: 剥 1024B 头, 每页 [密文4048][IV16][pad12][HMAC20] AES-CBC 解密
 ```
 
@@ -110,7 +110,7 @@ if pt[:2] == b"\x10\x00" and pt[5] == 0x40 and pt[6] == 0x20 and pt[7] == 0x20: 
 # 然后对目标库扫钥（~15-50 min）
 python qq_scan_db.py nt_msg.db <持库pid>
 
-# 解密（读取 qq_derived_keys/<db>.key）
+# 解密（读取 local/qq_derived_keys/<db>.key）
 python qq_decrypt_db.py nt_msg.db
 ```
 

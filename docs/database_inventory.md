@@ -6,7 +6,7 @@
 
 ## 微信 4.x（27 库，一钥全解）
 
-`wx4.py decrypt` 产出 `decrypted/`，目录结构与客户端原始布局一致：
+`wx4.py decrypt` 产出 `local/decrypted/`，目录结构与客户端原始布局一致：
 
 | 库 | 内容 |
 |---|---|
@@ -54,7 +54,7 @@
 
 配套文件：
 
-- `qq_derived_keys/<db>.key` —— 每库独立派生 AES-256 密钥（hex）
+- `local/qq_derived_keys/<db>.key` —— 每库独立派生 AES-256 密钥（hex）
 - 消息体导出（`qq_parse_msg.py`）：
   - `QQ_聊天记录_c2c_msg_table.txt` —— 单聊全文（约 7.5 万行）
   - `QQ_聊天记录_group_msg_table.txt` —— 群聊全文（约 154 万行）
@@ -66,5 +66,5 @@
 sqlite3 nt_msg_plain.db "PRAGMA integrity_check;"          # → ok
 sqlite3 nt_msg_plain.db "SELECT count(*) FROM group_msg_table;"
 python qq_parse_msg.py        # 重建全文导出
-python extract_me.py --decrypted decrypted
+python extract_me.py --decrypted local/decrypted
 ```

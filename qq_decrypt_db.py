@@ -10,11 +10,11 @@ from Crypto.Cipher import AES
 
 HERE = r"."
 SRC_DIR = r"<QQ_NT_DB>"
-DST_DIR = os.path.join(HERE, "decrypted_qq")
+DST_DIR = os.path.join(HERE, "local", "decrypted_qq")
 RES = 48
 
 db = sys.argv[1]
-key_hex = open(os.path.join(HERE, "qq_derived_keys", db + ".key")).read().strip()
+key_hex = open(os.path.join(HERE, "local", "qq_derived_keys", db + ".key")).read().strip()
 ENC = bytes.fromhex(key_hex)
 src = os.path.join(SRC_DIR, db)
 dst = os.path.join(DST_DIR, db.replace(".db", "_plain.db"))

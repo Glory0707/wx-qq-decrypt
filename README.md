@@ -31,8 +31,8 @@ Windows 端微信 4.x / QQ NT（9.9.35 实测）本地聊天记录解密管线�
 
 ```bash
 python wx4.py keyscan    # 或使用 wx_key 抓取后写入 wx_keys.txt（行格式: <64hex>\tkdf=True）
-python wx4.py decrypt    # 全库解密到 decrypted/（27 库 HMAC 全过）
-python extract_me.py --decrypted decrypted          # 可选: 本人消息聚合摘要（不落原文）
+python wx4.py decrypt    # 全库解密到 local/decrypted/（27 库 HMAC 全过）
+python extract_me.py --decrypted local/decrypted    # 可选: 本人消息聚合摘要（不落原文）
 python extract_meta.py --root <微信数据目录>         # 可选: 免解密文件名时间线探针
 ```
 
@@ -68,7 +68,7 @@ python qq_hook_run.py spawn
 # 2) 找到持库进程（页缓存明文指纹），对目标库搜派生密钥
 python qq_scan_db.py nt_msg.db <持库pid>
 
-# 3) 解密（qq_derived_keys/<db>.key 中存放 hex 密钥）
+# 3) 解密（local/qq_derived_keys/<db>.key 中存放 hex 密钥）
 python qq_decrypt_db.py nt_msg.db
 # 或官方 sqlcipher3 等价物：
 #   PRAGMA cipher_page_size=4096; PRAGMA key='...'; PRAGMA kdf_iter=4000;
@@ -131,6 +131,21 @@ python qq_parse_msg.py --json out.json # 另存结构化 JSON
 | `qq_decrypt_db.py` / `qq_decrypt_all.py` | QQ 库批量解密 |
 | `find_holder.py` | 句柄枚举，定位持有目标库的进程 |
 | `qq_parse_msg.py` | 消息体 protobuf（40800 列）→ 可读文本；支持单聊/群聊、无 schema 递归解码、uid→昵称映射、多元素渲染（引用/表情/图片/文件/红包/灰条等） |
+
+## 仓库结构
+
+```
+wx-qq-decrypt/
+├── *.py, qq_hook.js, docs/     # 本项目工具与文档（公开）
+├── vendor/wechat-decrypt/      # 第三方 MIT 工具（vendor 分发；其 config.json 为本地配置，不入库）
+└── local/                      # 本地私有工作区（已 gitignore，永不入库）
+    ├── decrypted/              #   微信 27 库解密产物
+    ├── decrypted_qq/           #   QQ 12 库解密产物 + 全文导出 txt
+    ├── qq_derived_keys/        #   每库独立派生密钥
+    └── workbench/              #   中间脚本、日志、测试产物
+```
+
+脚本默认数据路径均指向 `local/`；克隆后按各脚本 `--help` 传入自己的目录即可。
 
 ## 文档
 

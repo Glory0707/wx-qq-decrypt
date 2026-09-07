@@ -35,7 +35,7 @@ BARE_HEX_RE = re.compile(rb"(?<![0-9a-fA-F])([0-9a-f]{64})(?![0-9a-fA-F])")
 # 定长锚: len 字段 (00x7+0x20) + cap 字段前 7 字节; cap 本体放宽为 >=0x20
 STUB_LEN = b"\x00" * 7 + b"\x20" + b"\x00" * 7
 DEFAULT_SRC = r"<XWECHAT_DB_STORAGE>"
-DEFAULT_DST = r".\decrypted"
+DEFAULT_DST = r".\local\decrypted"
 
 # ---------------- 进程内存扫描 (ctypes) ----------------
 

@@ -14,7 +14,7 @@ from Crypto.Cipher import AES
 DB_NAME = sys.argv[1]
 PID = int(sys.argv[2]) if len(sys.argv) > 2 else 21084
 SRC = os.path.join(r"<QQ_NT_DB>", DB_NAME)
-OUT = os.path.join(r".\qq_derived_keys", DB_NAME + ".key")
+OUT = os.path.join(r".\local\qq_derived_keys", DB_NAME + ".key")
 RES = 48
 
 f = open(SRC, "rb")
