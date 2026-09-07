@@ -48,6 +48,7 @@ python extract_me.py     # （可选）聚合摘要，需自行修改个人关�
    - 利用 SQLite 页 1 明文头指纹（`10 00 02 02 50 40 20 20`，即页 4096 / WAL / 保留 0x50），
      对**任意可读进程**内存做 32 字节滑窗 AES 解密匹配 —— 直接找到**派生后的 AES-256 密钥**，绕过 passphrase
    - 多进程时先用页缓存明文指纹（`group_msg_table` 等）定位持库进程
+   - 📄 原理细节与实测结论见 [docs/known_plaintext_key_recovery.md](docs/known_plaintext_key_recovery.md)
 3. **整库解密**（`qq_decrypt_db.py`）
    - 文件头 1024B 私有头（protobuf，含 `key_meta`）剥离
    - 每页 `[密文 4048][IV 16][填充 12][HMAC-SHA1 20]`，`enc=PBKDF2-SHA512(passphrase,盐,4000)`
