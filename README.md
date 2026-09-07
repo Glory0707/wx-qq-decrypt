@@ -72,6 +72,21 @@ python qq_decrypt_db.py nt_msg.db
 
 实测产出：`nt_msg_plain.db` 私聊 75,632 条 + 群聊 1,542,705 条，`PRAGMA integrity_check` = ok。
 
+### 消息体解析（40800 列 protobuf → 明文）
+
+```bash
+python qq_parse_msg.py                 # 单聊+群聊全量导出为可读 txt（约 1.5 分钟 / 160 万条）
+python qq_parse_msg.py --json out.json # 另存结构化 JSON
+```
+
+输出示例：
+```
+[2023-06-13 15:47:07] 群1108894296 某某(123456): [引用] 必须振作 | @某人 |  啥时候学驾驶？
+```
+
+实测 161 万条仅 2 条解析失败（0.0001%）。字段表参考 miniyu157/qq-dump 的
+`proto_maps.py`（~260 个字段语义），本脚本已内联并自带无 schema 递归解码器，无 blackboxprotobuf 依赖。
+
 ### 关键发现：QQ NT 9.9.35 每库密钥独立
 
 对同一账号同一登录会话内的四个库（nt_msg / group_info / profile_info / collection）分别
@@ -91,6 +106,7 @@ python qq_decrypt_db.py nt_msg.db
 | `scan_derived.py` / `qq_scan_db.py` | 已知明文派生密钥内存搜索 |
 | `qq_decrypt_db.py` / `qq_decrypt_all.py` | QQ 库批量解密 |
 | `find_holder.py` | 句柄枚举，定位持有目标库的进程 |
+| `qq_parse_msg.py` | 消息体 protobuf（40800 列）→ 可读文本；支持单聊/群聊、无 schema 递归解码、uid→昵称映射、多元素渲染（引用/表情/图片/文件/红包/灰条等） |
 
 ## 依赖
 
