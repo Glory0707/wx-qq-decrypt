@@ -72,6 +72,15 @@ python qq_decrypt_db.py nt_msg.db
 
 实测产出：`nt_msg_plain.db` 私聊 75,632 条 + 群聊 1,542,705 条，`PRAGMA integrity_check` = ok。
 
+### 关键发现：QQ NT 9.9.35 每库密钥独立
+
+对同一账号同一登录会话内的四个库（nt_msg / group_info / profile_info / collection）分别
+恢复派生密钥，得到 **4 个互不相同的 32 字节 AES 密钥**（跨进程重启但同会话时值保持稳定）。
+
+这与社区文档描述的旧版行为（一个账号一把 16 字符 passphrase 共享全部库）不同：
+旧版"抓到一把钥匙解所有库"的方法在新版上天然失效，必须逐库恢复密钥。
+验证方式见 [docs/known_plaintext_key_recovery.md](docs/known_plaintext_key_recovery.md)。
+
 ## 文件
 
 | 文件 | 用途 |
