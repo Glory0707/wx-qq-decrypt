@@ -68,6 +68,8 @@ python qq_decrypt_db.py nt_msg.db
 # 或官方 sqlcipher3 等价物：
 #   PRAGMA cipher_page_size=4096; PRAGMA key='...'; PRAGMA kdf_iter=4000;
 #   PRAGMA cipher_hmac_algorithm=HMAC_SHA1; PRAGMA cipher_kdf_algorithm=PBKDF2_HMAC_SHA512;
+# ⚠️ 坑: sqlcipher 连接上的 VACUUM INTO 产物仍是同密钥加密库;
+#    明文导出须 ATTACH 明文库(KEY='') + SELECT sqlcipher_export('plain');
 ```
 
 实测产出：`nt_msg_plain.db` 私聊 75,632 条 + 群聊 1,542,705 条，`PRAGMA integrity_check` = ok。

@@ -56,20 +56,26 @@ def main():
         out_db = os.path.join(DST, fn.replace(".db", "_plain.db"))
         done = False
         for key in keys:
+            con = None
             try:
                 con = open_enc(clear, key)
                 if os.path.exists(out_db):
                     os.remove(out_db)
-                con.execute(f"VACUUM INTO '{out_db}';")
+                # 注意: sqlcipher 连接上的 VACUUM INTO 产物仍是同密钥加密库!
+                # 明文导出必须 ATTACH 明文库(KEY='') + sqlcipher_export
+                con.execute(f"ATTACH DATABASE '{out_db}' AS plain KEY '';")
+                con.execute("SELECT sqlcipher_export('plain');")
+                con.execute("DETACH plain;")
                 con.close()
                 print(f"[OK] {fn} (key={key[:8]}...)", flush=True)
                 done = True
                 break
             except Exception:
-                try:
-                    con.close()
-                except Exception:
-                    pass
+                if con:
+                    try:
+                        con.close()
+                    except Exception:
+                        pass
         if done:
             ok += 1
         else:
