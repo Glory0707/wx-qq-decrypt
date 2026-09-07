@@ -10,7 +10,6 @@
 字段表参考 miniyu157/qq-dump (chat_export/proto_maps.py)
 """
 import argparse
-import base64
 import json
 import os
 import sqlite3
@@ -38,6 +37,7 @@ def _read_varint(buf, i):
 
 
 def looks_like_protobuf(buf):
+    """严格全量校验 (用于'是否嵌套'的快速判断)"""
     if not buf:
         return False
     try:
@@ -67,38 +67,111 @@ def looks_like_protobuf(buf):
         return False
 
 
+_MOJIBAKE_MARKS = "锛鍗浠婃閮娈鑾鐜鍚鐨勬垜璇翠綘"
+
+def decode_text(buf):
+    """双解码链: utf-8 优先; GBK 修复兜底但带二次乱码指纹门槛
+    (UTF-8 中文被误按 GBK 解会大量出现 鍗/浠/婃/锛 等特征字, 直接拒绝)"""
+    try:
+        return buf.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    try:
+        t = buf.decode("gbk")
+        if sum(t.count(c) for c in _MOJIBAKE_MARKS) >= 2 or "锛" in t:
+            return None
+        return t
+    except UnicodeDecodeError:
+        pass
+    return None
+
+
 def raw_decode(buf, depth=0):
-    """无 schema 递归解码; 返回 dict {field: value|list}"""
-    if depth > 12:
+    """无 schema 递归解码。
+
+    v2: 失败不再整体放弃 —— 单字段解析出错时字节 +1 重同步继续,
+    尽力恢复前缀字段; 末端未消费的尾块按 utf-8/GBK 双解码成文本。
+    """
+    if isinstance(buf, str):
         return buf
     out = {}
-    i = 0
-    try:
-        while i < len(buf):
-            tag, i = _read_varint(buf, i)
+    i, n = 0, len(buf)
+    consumed = 0
+    while i < n:
+        try:
+            tag, j = _read_varint(buf, i)
             f, w = tag >> 3, tag & 7
+            if f == 0 or f > 100000:
+                raise ValueError("bad field")
             if w == 0:
-                v, i = _read_varint(buf, i)
+                v, j = _read_varint(buf, j)
             elif w == 1:
-                v = buf[i:i + 8]
-                i += 8
+                v, j = buf[j:j + 8], j + 8
             elif w == 2:
-                ln, i = _read_varint(buf, i)
-                v = buf[i:i + ln]
-                i += ln
+                ln, j = _read_varint(buf, j)
+                if j + ln > n:
+                    raise ValueError("len overflow")
+                v, j = buf[j:j + ln], j + ln
                 sub = raw_decode(v, depth + 1) if looks_like_protobuf(v) else None
                 if isinstance(sub, dict) and sub:
                     v = sub
                 else:
-                    try:
-                        s = v.decode("utf-8")
-                        if all(ch >= " " or ch in "\n\r\t" for ch in s):
-                            v = s
-                    except UnicodeDecodeError:
-                        pass
+                    t = decode_text(v)
+                    if t is not None:
+                        v = t
+                    elif depth < 10 and len(v) >= 4:
+                        # 宽松重同步解析: 能恢复出字段则视为嵌套
+                        cand = _resync_fields(v, depth + 1)
+                        if cand:
+                            v = cand
             elif w == 5:
-                v = buf[i:i + 4]
-                i += 4
+                v, j = buf[j:j + 4], j + 4
+            else:
+                raise ValueError("bad wire")
+            if f in out:
+                if not isinstance(out[f], list):
+                    out[f] = [out[f]]
+                out[f].append(v)
+            else:
+                out[f] = v
+            i = j
+            consumed = j
+        except (IndexError, ValueError):
+            i += 1  # 重同步: 跳过一个坏字节继续
+    # 尾部未覆盖的残余按文本挂到 0 号键 (引用原文/拼接元素常见)
+    if n - consumed >= 4 and consumed > 0:
+        t = decode_text(buf[consumed:])
+        if t:
+            out[0] = t
+    return out
+
+
+def _resync_fields(buf, depth):
+    """对严格解析失败的缓冲做重同步解析, 返回字段 dict (空=放弃)"""
+    out = {}
+    i, n = 0, len(buf)
+    ok = 0
+    while i < n:
+        try:
+            tag, j = _read_varint(buf, i)
+            f, w = tag >> 3, tag & 7
+            if f == 0 or f > 100000:
+                raise ValueError
+            if w == 0:
+                v, j = _read_varint(buf, j)
+            elif w == 2:
+                ln, j = _read_varint(buf, j)
+                if j + ln > n:
+                    raise ValueError
+                raw = buf[j:j + ln]
+                j += ln
+                sub = raw_decode(raw, depth) if looks_like_protobuf(raw) else None
+                v = sub if isinstance(sub, dict) and sub else decode_text(raw)
+                if v is None:
+                    v = raw
+            elif w in (1, 5):
+                ln = 8 if w == 1 else 4
+                v, j = buf[j:j + ln], j + ln
             else:
                 raise ValueError
             if f in out:
@@ -107,9 +180,11 @@ def raw_decode(buf, depth=0):
                 out[f].append(v)
             else:
                 out[f] = v
-        return out
-    except (IndexError, ValueError):
-        return buf
+            i = j
+            ok += 1
+        except (IndexError, ValueError):
+            i += 1
+    return out if ok >= 2 else {}
 
 
 def flatten(d, prefix=""):
@@ -176,10 +251,10 @@ IGNORE_LEN5 = set("""40010 40020 40021 45001 45004 45005 45008 45102 45103 45104
 
 def to_str(v):
     if isinstance(v, bytes):
-        try:
-            return v.decode("utf-8")
-        except UnicodeDecodeError:
-            return base64.b64encode(v).decode()
+        t = decode_text(v)
+        if t is not None:
+            return t
+        return f"[二进制 {len(v)}B]"
     return str(v)
 
 
